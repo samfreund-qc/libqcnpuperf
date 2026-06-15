@@ -1,0 +1,8 @@
+qcnpuperf (1.0-1) unstable; urgency=low
+
+  * Initial Debian packaging.
+  * Add qcnpuperfd: daemon polling NPU/DSP metrics every 500 ms via FastRPC.
+    Metrics written atomically to /dev/shm/qcnpuperf; no history retained.
+  * Includes libqcnpuperf shared library, qcom_dsp.h header, and pkg-config file.
+
+ -- Qualcomm Technologies, Inc. <oss@qualcomm.com>  Mon, 15 Jun 2026 00:00:00 +0000

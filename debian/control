@@ -1,0 +1,20 @@
+Source: qcnpuperf
+Section: libs
+Priority: optional
+Maintainer: Qualcomm Technologies, Inc. <oss@qualcomm.com>
+Build-Depends: debhelper-compat (= 13), cmake (>= 3.21), qcom-fastrpc-dev
+Standards-Version: 4.6.0
+Rules-Requires-Root: no
+
+Package: qcnpuperf
+Architecture: arm64
+Depends: qcom-fastrpc1, ${shlibs:Depends}, ${misc:Depends}
+Description: Qualcomm NPU/DSP performance metrics library and daemon
+ libqcnpuperf exposes Qualcomm NPU and DSP hardware performance counters
+ (Q6 utilization, Q6 clock, HVX utilization, HMX utilization) via the
+ FastRPC transport on Qualcomm SoCs.
+ .
+ This package contains the shared runtime library, development headers,
+ pkg-config file, and qcnpuperfd: a daemon that polls the DSP every 500 ms
+ and atomically writes a fresh metrics snapshot to /dev/shm/qcnpuperf.
+ No historical data is retained; the file always reflects the current state.

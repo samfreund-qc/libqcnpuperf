@@ -9,7 +9,8 @@ project(qcnpuperf
 # ------------------------------------------------------------
 # Options / paths
 # ------------------------------------------------------------
-option(QCNPU_PERF_BUILD_CLI "Build ncurses-based CLI sample (qcnpuperf_cli)" ON)
+option(QCNPU_PERF_BUILD_CLI    "Build ncurses-based CLI sample (qcnpuperf_cli)" ON)
+option(QCNPU_PERF_BUILD_DAEMON "Build the NPU metrics polling daemon (qcnpuperfd)" ON)
 
 # Allow overriding FastRPC paths at configure time
 find_path(FASTRPC_INCLUDE_DIR AEEStdDef.h
@@ -118,6 +119,26 @@ if(QCNPU_PERF_BUILD_CLI)
   else()
     message(STATUS "ncurses (Curses) not found; skipping qcnpuperf_cli. Install libncurses-dev or set -DQCNPU_PERF_BUILD_CLI=OFF")
   endif()
+endif()
+
+# ------------------------------------------------------------
+# Optional daemon (qcnpuperfd)
+# ------------------------------------------------------------
+if(QCNPU_PERF_BUILD_DAEMON)
+  add_executable(qcnpuperfd src/qcnpuperf_daemon.c)
+
+  target_include_directories(qcnpuperfd PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc
+    ${FASTRPC_INCLUDE_DIR}
+  )
+
+  target_link_libraries(qcnpuperfd PRIVATE qcnpuperf)
+
+  install(TARGETS qcnpuperfd RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
+
+  install(FILES lib/systemd/system/qcnpuperfd.service
+    DESTINATION lib/systemd/system
+  )
 endif()
 
 # ------------------------------------------------------------

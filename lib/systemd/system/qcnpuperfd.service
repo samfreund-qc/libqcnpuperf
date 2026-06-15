@@ -1,0 +1,18 @@
+[Unit]
+Description=Qualcomm NPU Performance Metrics Daemon
+Documentation=https://github.com/qualcomm/qcnpuperf
+After=local-fs.target
+# Requires the FastRPC character devices to be present
+ConditionPathExists=/dev/fastrpc-cdsp
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/qcnpuperfd
+Restart=on-failure
+RestartSec=5
+
+# Runtime directory permissions — /dev/shm is world-writable tmpfs by default,
+# so no special setup is needed; the daemon creates /dev/shm/qcnpuperf itself.
+
+[Install]
+WantedBy=multi-user.target
