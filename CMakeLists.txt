@@ -16,6 +16,23 @@ find_path(FASTRPC_INCLUDE_DIR AEEStdDef.h
     PATHS /usr/include/fastrpc /usr/local/include/fastrpc /usr/include/aarch64-linux-gnu
 )
 
+# If headers were not found locally, fetch them from the upstream
+# qualcomm/fastrpc repository (BSD-3-Clause).
+if(NOT FASTRPC_INCLUDE_DIR)
+    include(FetchContent)
+    FetchContent_Declare(fastrpc_headers
+        GIT_REPOSITORY https://github.com/qualcomm/fastrpc.git
+        GIT_TAG        development
+        GIT_SHALLOW    TRUE
+    )
+    # Disable building anything from the fetched repo — headers only.
+    set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+    FetchContent_MakeAvailable(fastrpc_headers)
+    set(FASTRPC_INCLUDE_DIR "${fastrpc_headers_SOURCE_DIR}/inc"
+        CACHE PATH "FastRPC headers fetched from qualcomm/fastrpc" FORCE)
+    message(STATUS "FastRPC headers not found locally; using fetched copy: ${FASTRPC_INCLUDE_DIR}")
+endif()
+
 find_library(FASTRPC_LIBRARY NAMES cdsprpc
     PATHS /usr/lib /usr/local/lib /usr/lib/aarch64-linux-gnu/
 )
