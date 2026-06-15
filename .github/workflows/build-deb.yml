@@ -1,0 +1,61 @@
+name: Build deb package
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake debhelper git
+
+      - name: Create libcdsprpc link stub
+        run: |
+          cat > /tmp/cdsprpc_stub.c << 'EOF'
+          /* Link-only stub — real symbols resolved from qcom-fastrpc1 at runtime */
+          #include <stdint.h>
+          typedef uint64_t remote_handle64;
+          typedef struct { void *buf; unsigned int len; } remote_buf64;
+          typedef union  { remote_buf64 buf; } remote_arg;
+          int   remote_handle64_open(const char *n, remote_handle64 *h)                     { return -1; }
+          int   remote_handle64_close(remote_handle64 h)                                    { return -1; }
+          int   remote_handle64_invoke(remote_handle64 h, unsigned int sc, remote_arg *pra) { return -1; }
+          int   remote_handle64_control(remote_handle64 h, unsigned int req, void *data, unsigned int len) { return -1; }
+          void *rpcmem_alloc(int heapid, unsigned int flags, int size)                      { return 0; }
+          void  rpcmem_free(void *po)                                                       {}
+          /* Function pointer exports referenced by dspquery_stub.c */
+          int   (*local_remote_handle64_open)(const char *, remote_handle64 *)             = 0;
+          int   (*local_remote_handle64_invoke)(remote_handle64, unsigned int, remote_arg *) = 0;
+          int   (*local_remote_handle64_close)(remote_handle64)                            = 0;
+          void *(*local_rpcmem_alloc)(int, unsigned int, int)                              = 0;
+          void  (*local_rpcmem_free)(void *)                                               = 0;
+          EOF
+          sudo gcc -shared -fPIC \
+            -o /usr/lib/aarch64-linux-gnu/libcdsprpc.so \
+            /tmp/cdsprpc_stub.c
+
+      - name: Build deb
+        run: dpkg-buildpackage -us -uc -b -d
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qcnpuperf-deb
+          path: ../qcnpuperf_*.deb
+          retention-days: 30
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ../qcnpuperf_*.deb

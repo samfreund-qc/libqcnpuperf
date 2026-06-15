@@ -2,7 +2,7 @@ Source: qcnpuperf
 Section: libs
 Priority: optional
 Maintainer: Qualcomm Technologies, Inc. <oss@qualcomm.com>
-Build-Depends: debhelper-compat (= 13), cmake (>= 3.21), qcom-fastrpc-dev
+Build-Depends: debhelper-compat (= 13), cmake (>= 3.21), git
 Standards-Version: 4.6.0
 Rules-Requires-Root: no
 
