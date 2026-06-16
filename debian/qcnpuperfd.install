@@ -1,0 +1,2 @@
+usr/bin/qcnpuperfd
+usr/lib/systemd/system/qcnpuperfd.service
