@@ -27,58 +27,54 @@
     IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "qcom_dsp.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <ncurses.h>
+#ifndef QCOM_DSP_TYPES_H_
+#define QCOM_DSP_TYPES_H_
 
-static const char *domain_to_str(enum DspDomainId domain)
-{
-	switch (domain) {
-	case DSP_ADSP: return "ADSP";
-	case DSP_NPU0: return "NPU0 (CDSP)";
-	default:       return "UNKNOWN";
-	}
-}
+/*
+ * Minimal types shared between qcom_dsp.h and translation units that need
+ * the kernel UAPI directly (e.g. qcom_dsp_arch.c).  Kept separate so that
+ * code including <misc/fastrpc.h> can use this header without also pulling
+ * in remote.h, which redefines enum fastrpc_map_flags and causes a conflict.
+ */
 
-/*TODO: Extend it to other DSPS */ 
-int main(int argc, char *argv[])
-{
-	struct sysmon_query_prof_data *data;
-	struct qcom_dsp_ctx *ctx;
-	int no_metrics = 0;
+/**
+ * @brief DSP domain identifiers.
+ *
+ * Values match ADSP_DOMAIN_ID / CDSP_DOMAIN_ID in remote.h.
+ */
+enum DspDomainId {
+    DSP_ADSP = 0, /**< Audio DSP (ADSP) */
+    DSP_NPU0 = 3, /**< Compute DSP / NPU (CDSP) */
+};
 
-	initscr();
-	noecho();
-	curs_set(FALSE);
+/**
+ * @brief Opaque session context.
+ *
+ * Allocated by qcom_dsp_open() and released by qcom_dsp_close().
+ * Callers must not access members directly.
+ */
+struct qcom_dsp_ctx;
 
-	ctx = qcom_dsp_open(DSP_NPU0);
-	if (!ctx) {
-		fprintf(stderr, "qcom_dsp_open failed\n");
-		endwin();
-		return EXIT_FAILURE;
-	}
+/**
+ * @brief Opaque profiling data snapshot.
+ *
+ * Returned by qcom_dsp_get_prof_data().  Individual fields are accessed
+ * through the qcom_dsp_prof_get_*() accessor functions.
+ * Callers must not access members directly or free the pointer.
+ */
+struct sysmon_query_prof_data;
 
-	while (true) {
-		data = qcom_dsp_get_prof_data(ctx, &no_metrics);
-		if (!data || no_metrics <= 0) {
-			fprintf(stderr, "qcom_dsp_get_prof_data failed\n");
-			qcom_dsp_close(ctx);
-			endwin();
-			return EXIT_FAILURE;
-		}
+/**
+ * @brief Return codes for internal DSP library operations.
+ */
+enum DspReturnCode {
+    RETURN_CODE_DSP_LIB_SUCCESS = 0,              /**< Operation succeeded */
+    RETURN_CODE_DSP_LIB_FAIL = 1,                 /**< Generic failure */
+    RETURN_CODE_DSP_SYSMON_QUERY_OPEN_FAILED,     /**< FastRPC handle open failed */
+    RETURN_CODE_DSP_SYSMON_QUERY_INIT_FAILED,     /**< Sysmon query init failed */
+    RETURN_CODE_DSP_SYSMON_QUERY_RPC_MEM_ALLOC_FAILED, /**< Shared memory allocation failed */
+    RETURN_CODE_DSP_SYSMON_QUERY_GET_PROF_DATA_FAILED,  /**< Profiling data query failed */
+    RETURN_CODE_DSP_SYSMON_QUERY_DEINIT_FAILED,   /**< Sysmon query deinit failed */
+};
 
-		mvprintw(0, 0, "----------------- %s Stats---------------------\n", domain_to_str(DSP_NPU0));
-		mvprintw(1, 0, "Q6 Utilization        : %.2f %%\n", qcom_dsp_prof_get_q6_utilization(data));
-		mvprintw(2, 0, "Q6 Clock              : %u KHz\n",  qcom_dsp_prof_get_q6_clock(data));
-		mvprintw(3, 0, "HVX Utilization       : %.2f %%\n", qcom_dsp_prof_get_hvx_utilization(data));
-		mvprintw(4, 0, "HMX Utiliziation       : %.2f %%\n", qcom_dsp_prof_get_hmx_utilization(data));
-		mvprintw(6, 0, "-------------------------------------------------\n");
-		refresh();
-		sleep(1);
-	}
-
-	qcom_dsp_close(ctx);
-	endwin();
-	return EXIT_SUCCESS;
-}
+#endif /* QCOM_DSP_TYPES_H_ */

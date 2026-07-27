@@ -27,58 +27,42 @@
     IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "qcom_dsp.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <ncurses.h>
+#ifndef QCOM_DSP_PRIV_H_
+#define QCOM_DSP_PRIV_H_
 
-static const char *domain_to_str(enum DspDomainId domain)
-{
-	switch (domain) {
-	case DSP_ADSP: return "ADSP";
-	case DSP_NPU0: return "NPU0 (CDSP)";
-	default:       return "UNKNOWN";
-	}
-}
+#include "qcom_dsp_types.h"
+#include <stdint.h>
 
-/*TODO: Extend it to other DSPS */ 
-int main(int argc, char *argv[])
-{
-	struct sysmon_query_prof_data *data;
-	struct qcom_dsp_ctx *ctx;
-	int no_metrics = 0;
+/*
+ * Full definition of the opaque context.  Not installed — callers only
+ * see the forward declaration in qcom_dsp.h.
+ *
+ * remote_handle64 is typedef uint64_t in remote.h; stored as uint64_t here
+ * to keep the type explicit.
+ */
+struct sysmon_query_prof_data {
+    float        q6_utilization;   /* avg effective q6 clock / max q6 clock (%) */
+    unsigned int q6_clock;         /* avg q6 clock (KHz) */
+    float        reserved0;
+    float        hvx_utilization;  /* avg HVX utilization / max q6 clock (%) */
+    float        hmx_utilization;  /* avg HMX utilization / max q6 clock (%) */
+    float        reserved1;
+    float        reserved2;
+    float        reserved3;
+    float        reserved4;
+    float        reserved5;
+    float        reserved6;
+    float        reserved7;
+    float        reserved8;
+    float        reserved9;
+};
 
-	initscr();
-	noecho();
-	curs_set(FALSE);
+struct qcom_dsp_ctx {
+    enum DspDomainId              domain_id;
+    uint64_t                      h;         /* remote_handle64 */
+    struct sysmon_query_prof_data *prof_data;
+    unsigned int                  arch_ver;  /* cached; 0 = not yet queried */
+};
 
-	ctx = qcom_dsp_open(DSP_NPU0);
-	if (!ctx) {
-		fprintf(stderr, "qcom_dsp_open failed\n");
-		endwin();
-		return EXIT_FAILURE;
-	}
-
-	while (true) {
-		data = qcom_dsp_get_prof_data(ctx, &no_metrics);
-		if (!data || no_metrics <= 0) {
-			fprintf(stderr, "qcom_dsp_get_prof_data failed\n");
-			qcom_dsp_close(ctx);
-			endwin();
-			return EXIT_FAILURE;
-		}
-
-		mvprintw(0, 0, "----------------- %s Stats---------------------\n", domain_to_str(DSP_NPU0));
-		mvprintw(1, 0, "Q6 Utilization        : %.2f %%\n", qcom_dsp_prof_get_q6_utilization(data));
-		mvprintw(2, 0, "Q6 Clock              : %u KHz\n",  qcom_dsp_prof_get_q6_clock(data));
-		mvprintw(3, 0, "HVX Utilization       : %.2f %%\n", qcom_dsp_prof_get_hvx_utilization(data));
-		mvprintw(4, 0, "HMX Utiliziation       : %.2f %%\n", qcom_dsp_prof_get_hmx_utilization(data));
-		mvprintw(6, 0, "-------------------------------------------------\n");
-		refresh();
-		sleep(1);
-	}
-
-	qcom_dsp_close(ctx);
-	endwin();
-	return EXIT_SUCCESS;
-}
+enum DspReturnCode qcom_dsp_set_arch_version(struct qcom_dsp_ctx *ctx);
+#endif /* QCOM_DSP_PRIV_H_ */

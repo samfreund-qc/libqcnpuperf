@@ -29,6 +29,7 @@ include(GNUInstallDirs)
 
 add_library(qcnpuperf SHARED
     src/qcom_dsp.c
+    src/qcom_dsp_arch.c
     src/dspquery_stub.c
 )
 
@@ -75,6 +76,20 @@ target_link_libraries(qcnpuperf
 
 target_compile_options(qcnpuperf PRIVATE
     -fPIC
+)
+
+# ------------------------------------------------------------
+# ABI: restrict exported symbols to the documented public API
+# ------------------------------------------------------------
+
+set(QCNPUPERF_VERSION_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/src/qcnpuperf.map)
+
+target_link_options(qcnpuperf PRIVATE
+    -Wl,--version-script=${QCNPUPERF_VERSION_SCRIPT}
+)
+
+set_target_properties(qcnpuperf PROPERTIES
+    LINK_DEPENDS ${QCNPUPERF_VERSION_SCRIPT}
 )
 
 # ------------------------------------------------------------
@@ -138,5 +153,6 @@ install(FILES
 
 install(FILES
     inc/qcom_dsp.h
+    inc/qcom_dsp_types.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )

@@ -27,58 +27,52 @@
     IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "qcom_dsp.h"
-#include <stdlib.h>
+/*
+ * Kept in a separate translation unit from qcom_dsp.c so that
+ * <misc/fastrpc.h> (kernel UAPI) can be included directly without
+ * conflicting with the fastrpc_map_flags definition in remote.h, which
+ * qcom_dsp.h pulls in transitively.
+ */
+
+#include "qcom_dsp_priv.h"
+
+#include <misc/fastrpc.h>
+#include <fcntl.h>
 #include <unistd.h>
-#include <ncurses.h>
+#include <sys/ioctl.h>
 
-static const char *domain_to_str(enum DspDomainId domain)
+/* ARCH_VER is the 7th entry (0-indexed) of enum remote_dsp_attributes in
+ * remote.h.  Defined here as a plain constant to avoid including remote.h
+ * in this translation unit. */
+#define ARCH_VER 6
+
+enum DspReturnCode qcom_dsp_set_arch_version(struct qcom_dsp_ctx *ctx)
 {
-	switch (domain) {
-	case DSP_ADSP: return "ADSP";
-	case DSP_NPU0: return "NPU0 (CDSP)";
-	default:       return "UNKNOWN";
-	}
-}
+    const char *dev;
 
-/*TODO: Extend it to other DSPS */ 
-int main(int argc, char *argv[])
-{
-	struct sysmon_query_prof_data *data;
-	struct qcom_dsp_ctx *ctx;
-	int no_metrics = 0;
+    if (!ctx)
+        return RETURN_CODE_DSP_LIB_FAIL;
 
-	initscr();
-	noecho();
-	curs_set(FALSE);
+    switch (ctx->domain_id) {
+    case DSP_ADSP: dev = "/dev/fastrpc-adsp"; break;
+    case DSP_NPU0: dev = "/dev/fastrpc-cdsp"; break;
+    default:       return RETURN_CODE_DSP_LIB_FAIL;
+    }
 
-	ctx = qcom_dsp_open(DSP_NPU0);
-	if (!ctx) {
-		fprintf(stderr, "qcom_dsp_open failed\n");
-		endwin();
-		return EXIT_FAILURE;
-	}
+    int fd = open(dev, O_RDWR);
+    if (fd < 0)
+        return RETURN_CODE_DSP_LIB_FAIL;
 
-	while (true) {
-		data = qcom_dsp_get_prof_data(ctx, &no_metrics);
-		if (!data || no_metrics <= 0) {
-			fprintf(stderr, "qcom_dsp_get_prof_data failed\n");
-			qcom_dsp_close(ctx);
-			endwin();
-			return EXIT_FAILURE;
-		}
+    struct fastrpc_ioctl_capability cap = {
+        .attribute_id = ARCH_VER,
+    };
 
-		mvprintw(0, 0, "----------------- %s Stats---------------------\n", domain_to_str(DSP_NPU0));
-		mvprintw(1, 0, "Q6 Utilization        : %.2f %%\n", qcom_dsp_prof_get_q6_utilization(data));
-		mvprintw(2, 0, "Q6 Clock              : %u KHz\n",  qcom_dsp_prof_get_q6_clock(data));
-		mvprintw(3, 0, "HVX Utilization       : %.2f %%\n", qcom_dsp_prof_get_hvx_utilization(data));
-		mvprintw(4, 0, "HMX Utiliziation       : %.2f %%\n", qcom_dsp_prof_get_hmx_utilization(data));
-		mvprintw(6, 0, "-------------------------------------------------\n");
-		refresh();
-		sleep(1);
-	}
+    enum DspReturnCode ret = RETURN_CODE_DSP_LIB_FAIL;
+    if (ioctl(fd, FASTRPC_IOCTL_GET_DSP_INFO, &cap) == 0) {
+        ctx->arch_ver = cap.capability & 0xFF;
+        ret = RETURN_CODE_DSP_LIB_SUCCESS;
+    }
 
-	qcom_dsp_close(ctx);
-	endwin();
-	return EXIT_SUCCESS;
+    close(fd);
+    return ret;
 }
